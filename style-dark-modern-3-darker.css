@@ -1,0 +1,38 @@
+
+body {
+    background-color: #0f0f0f;
+    color: #cccccc;
+    font-family: 'Arial', sans-serif;
+}
+toolbar {
+    background-color: #0f0f0f;
+    border-bottom: 2px solid #4f4a4a;
+    color: #635a5a;
+}
+button {
+    background-color: #333;
+    color: #fff;
+    border-radius: 6px;
+    padding: 7px 14px;
+}
+.counter {
+    font-weight: bold;
+    color: #bfa84f;
+}
+label, select {
+    background-color: #333;
+    color: #fafafa;
+    border: 1px solid #444;
+    padding: 4px;
+    border-radius: 4px;
+}
+#counters {
+    background-color: #333; /* Piemērots fonā, lai nodrošinātu kontrastu */
+    color: #ffffff;            /* Balta krāsa, lai būtu skaidri redzama uz tumša fona */
+    font-size: 10px;           /* Palielināts fonta izmērs */
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
+	
