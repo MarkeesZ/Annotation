@@ -1,44 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<link rel="stylesheet" href="style-dark-modern-3-darker.css">
   <meta charset="utf-8" />
   <title>YOLOv8 Segmentation Tool (Editable with .txt Annotations)</title>
+  <link rel="stylesheet" href="style-dark-modern-3-darker.css">
   <style>
-    canvas {
-      border: 1px solid black;
-      cursor: crosshair;
-    }
+    /* Pārrakstām #toolbar inline stilu, lai tam būtu tumšs fons un kontrasts */
     #toolbar {
       position: fixed;
       top: 10px;
       left: 10px;
-      background: white;
+      background: #2b2b2b; /* Tumšs fons nodrošina kontrastu ar balto tekstu */
       padding: 10px;
       z-index: 100;
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
     }
+    /* Specifisks stils label elementiem iekš toolbar */
+    #toolbar label {
+      color: #fff !important;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    /* Padarām canvas nedaudz nobīdītu, lai thumbnails neslēptu saturu */
+    #canvas {
+      margin-right: 160px;
+      display: block;
+      margin-left: auto;
+      margin-top: 80px; /* ja nepieciešams, pielāgo vertikāli */
+      border: 1px solid black;
+      cursor: crosshair;
+    }
+    /* Thumbnail panelis - fiksēts labajā pusē, skrollējams, nobīdīts uz leju, lai neslēptu pogas */
+    #thumbnailBar {
+      position: fixed;
+      top: 110px;   /* nobīdīts uz leju, lai tiktu pie pogām (piemēram, redo) */
+      bottom: 0;
+      right: 0;
+      width: 150px;
+      background: #2b2b2b;
+      overflow-y: auto;
+      padding: 5px;
+      border-left: 1px solid #ccc;
+      z-index: 101;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Thumbnail attēliem */
+    #thumbnailBar img {
+      width: 100%;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 </head>
 <body>
   <div id="toolbar">
-    <label>Class:
-      <select id="classSelect">
-        <option value="0">Car</option>
-        <option value="1">Free Parking Space</option>
-      </select>
-    </label>
-    <label>Tool:
-      <select id="toolSelect">
-        <option value="draw">Draw</option>
-        <option value="pan">Pan</option>
-        <option value="select">Select</option>
-        <option value="move">Move</option>
-      </select>
-    </label>
+    <label for="classSelect">Class:</label>
+    <select id="classSelect">
+      <option value="0">Car</option>
+      <option value="1">Free Parking Space</option>
+    </select>
+    <label for="toolSelect">Tool:</label>
+    <select id="toolSelect">
+      <option value="draw">Draw</option>
+      <option value="pan">Pan</option>
+      <option value="select">Select</option>
+      <option value="move">Move</option>
+    </select>
     <button onclick="undoPoint()">Undo Point</button>
     <button onclick="undoPolygon()">Undo Polygon</button>
     <button onclick="completePolygon()">Complete Polygon</button>
@@ -57,7 +90,8 @@
     </div>
   </div>
   <canvas id="canvas"></canvas>
-  <div id="thumbnailBar" style="position:fixed; bottom:0; left:0; right:0; background:#f0f0f0; overflow-x:auto; white-space:nowrap; padding:5px; border-top:1px solid #ccc; z-index:101;"></div>
+  <!-- Thumbnail panelis labajā pusē -->
+  <div id="thumbnailBar"></div>
   
   <script>
     // Globālie mainīgie
@@ -66,11 +100,9 @@
     const imageLoader = document.getElementById('imageLoader');
     let currentClass = 0;
     let tool = 'draw';
-    // "images" masīvā saglabājam objektus ar šādām īpašībām: baseName, image (File) un annotation (File, ja pieejams)
     let images = [];
     let imageIndex = 0;
     let image = new Image();
-    // polygons objekts saglabā polygonu datus atslēgā pēc attēla baseName
     let polygons = {};
     let currentPolygon = [];
     let isPanning = false;
@@ -78,7 +110,6 @@
     let offsetX = 0, offsetY = 0;
     let zoom = 1;
     let selectedPolygonIndex = null;
-    // currentImageName – pašreizējā attēla bāzes nosaukums (bez paplašinājuma)
     let currentImageName = '';
 
     // History steki undo/redo
@@ -91,7 +122,7 @@
       redoStack = [];
     }
     
-    // Palīgsfunkcija: pārbauda, vai dots punkts atrodas iekšā polygonā
+    // Pārbauda, vai dots punkts atrodas iekšā polygonā
     function pointInPolygon(x, y, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -118,7 +149,7 @@
       document.getElementById('freeCount').textContent = free;
     }
     
-    // Zīmē attēlu un visus polygonus
+    // Zīmē galveno attēlu un visus polygonus uz canvas
     function draw() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -167,7 +198,6 @@
           const tokens = line.split(/\s+/);
           const cls = parseInt(tokens[0]);
           let points = [];
-          // Pārvēršam relatīvās koordinātas uz pikseļiem (izmantojot canvas izmērus)
           for (let i = 1; i < tokens.length; i += 2) {
             const relX = parseFloat(tokens[i]);
             const relY = parseFloat(tokens[i+1]);
@@ -191,7 +221,6 @@
           canvas.width = image.width;
           canvas.height = image.height;
           draw();
-          // Ja pieejams anotāciju fails, nolasam to
           if (data.annotation) {
             loadAnnotations(data.annotation, function(loadedPolys) {
               polygons[currentImageName] = loadedPolys;
@@ -202,26 +231,24 @@
             polygons[currentImageName] = polygons[currentImageName] || [];
             updateCounters();
           }
+          updateThumbnailPanel(); // Atjauno thumbnails paneli
         };
         image.src = e.target.result;
       };
       reader.readAsDataURL(data.image);
     }
     
-    // Apstrāde, kad lietotājs augšupielādē failus (attēli un/vai .txt anotācijas)
+    // Apstrāde, kad tiek augšupielādēti attēli un/vai .txt anotācijas
     imageLoader.addEventListener('change', function(e) {
       const newFiles = Array.from(e.target.files);
       if (newFiles.length === 0) return;
       
-      // Izveidojam pagaidu objektu, kur faili tiek sasaistīti pēc bāzes nosaukuma
       let dataMap = {};
       newFiles.forEach(file => {
         const fileName = file.name;
         const lowerName = fileName.toLowerCase();
-        // Izgūstam bāzes nosaukumu (bez paplašinājuma)
         const baseName = fileName.replace(/\.[^/.]+$/, "");
         if (!dataMap[baseName]) {
-          // Inicializējam objektu ar baseName, kur ieliek attēla un anotāciju failu
           dataMap[baseName] = { baseName: baseName, image: null, annotation: null };
         }
         if (lowerName.endsWith('.txt')) {
@@ -232,18 +259,17 @@
         }
       });
       
-      // Saglabājam tikai objektus, kuriem ir noteikts attēla fails
       Object.values(dataMap).forEach(item => {
         if (item.image) {
           images.push(item);
         }
       });
       
-      // Ja pašreizējais attēls nav iestatīts, ielādējam pirmo no saraksta
       if (!currentImageName && images.length > 0) {
         imageIndex = 0;
         loadImage(imageIndex);
       }
+      updateThumbnailPanel();
       e.target.value = "";
     });
     
@@ -348,7 +374,6 @@
       }
     });
     
-    // Main variables, lai pārvietotu individuālus punktus
     let draggingPoint = null;
     let isDraggingPolygon = false;
     let dragOffset = { x: 0, y: 0 };
@@ -390,8 +415,6 @@
         updateCounters();
       }
     });
-    
-    // Anotāciju manipulēšanas funkcijas
     
     function completePolygon() {
       if (!polygons[currentImageName]) polygons[currentImageName] = [];
@@ -459,6 +482,7 @@
       if (imageIndex > 0) {
         imageIndex--;
         loadImage(imageIndex);
+        updateThumbnailPanel();
       }
     }
     
@@ -466,6 +490,7 @@
       if (imageIndex < images.length - 1) {
         imageIndex++;
         loadImage(imageIndex);
+        updateThumbnailPanel();
       }
     }
     
@@ -486,6 +511,70 @@
         a.click();
       });
     }
+    
+    // Thumbnail panelis: parāda attēlu previews
+    function updateThumbnailPanel() {
+      const panel = document.getElementById('thumbnailBar');
+      panel.innerHTML = "";
+      images.forEach((item, idx) => {
+        const thumb = document.createElement('img');
+        thumb.src = URL.createObjectURL(item.image);
+        thumb.style.width = "100%";
+        thumb.style.marginBottom = "10px";
+        thumb.style.cursor = "pointer";
+        if (idx === imageIndex) {
+          thumb.style.border = "3px solid #bfa84f";
+        } else {
+          thumb.style.border = "1px solid #ccc";
+        }
+        thumb.addEventListener('click', () => {
+          imageIndex = idx;
+          loadImage(idx);
+          updateThumbnailPanel();
+        });
+        panel.appendChild(thumb);
+      });
+    }
+    
+    // LocalStorage funkcionalitāte
+
+    // Funkcija, kas saglabā polygons datus uz localStorage
+    function saveToLocalStorage() {
+      try {
+        const serializedData = JSON.stringify(polygons);
+        localStorage.setItem('savedPolygons', serializedData);
+      } catch (e) {
+        console.error('Neizdevās saglabāt datus uz localStorage:', e);
+      }
+    }
+
+    // Funkcija, kas ielādē polygons datus no localStorage (ja tādi ir)
+    function loadFromLocalStorage() {
+      try {
+        const serializedData = localStorage.getItem('savedPolygons');
+        if (serializedData) {
+          polygons = JSON.parse(serializedData);
+        }
+      } catch (e) {
+        console.error('Neizdevās ielādēt datus no localStorage:', e);
+      }
+    }
+
+    // Modificējam saveHistory funkciju, lai katru reizi saglabātu arī localStorage
+    const originalHistorySave = saveHistory;
+    saveHistory = function() {
+      originalHistorySave();
+      saveToLocalStorage();
+    };
+
+    // Kad lapa ielādējas, mēģina nolasīt saglabātos datus
+    window.addEventListener('load', () => {
+      loadFromLocalStorage();
+      // Ja saglabātie dati eksistē un ir atbilstība pašreizējam attēlam,
+      // atjaunina skaitītājus un zīmē (ja currentImageName ir iestatīts, to var vēlāk mainīt loadImage funkcijā)
+      updateCounters();
+      draw();
+    });
   </script>
 </body>
 </html>
