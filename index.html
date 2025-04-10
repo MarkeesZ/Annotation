@@ -10,7 +10,7 @@
       position: fixed;
       top: 10px;
       left: 10px;
-      background: #2b2b2b; /* Tumšs fons nodrošina kontrastu ar balto tekstu */
+      background: #2b2b2b;
       padding: 10px;
       z-index: 100;
       display: flex;
@@ -28,14 +28,14 @@
       margin-right: 160px;
       display: block;
       margin-left: auto;
-      margin-top: 80px; /* ja nepieciešams, pielāgo vertikāli */
+      margin-top: 80px;
       border: 1px solid black;
       cursor: crosshair;
     }
     /* Thumbnail panelis - fiksēts labajā pusē, skrollējams, nobīdīts uz leju, lai neslēptu pogas */
     #thumbnailBar {
       position: fixed;
-      top: 110px;   /* nobīdīts uz leju, lai tiktu pie pogām (piemēram, redo) */
+      top: 110px;   /* nobīdīts uz leju */
       bottom: 0;
       right: 0;
       width: 150px;
@@ -100,9 +100,11 @@
     const imageLoader = document.getElementById('imageLoader');
     let currentClass = 0;
     let tool = 'draw';
+    // "images" masīvā saglabājam objektus ar īpašībām: baseName, dataUrl, annotationText (ja ir)
     let images = [];
     let imageIndex = 0;
     let image = new Image();
+    // polygons objekts saglabā polygonu datus atslēgā pēc attēla baseName
     let polygons = {};
     let currentPolygon = [];
     let isPanning = false;
@@ -122,7 +124,6 @@
       redoStack = [];
     }
     
-    // Pārbauda, vai dots punkts atrodas iekšā polygonā
     function pointInPolygon(x, y, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -135,7 +136,6 @@
       return inside;
     }
     
-    // Atjaunina live counters (Car/Free Space skaits)
     function updateCounters() {
       let cars = 0;
       let free = 0;
@@ -149,7 +149,6 @@
       document.getElementById('freeCount').textContent = free;
     }
     
-    // Zīmē galveno attēlu un visus polygonus uz canvas
     function draw() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -172,7 +171,6 @@
         ctx.stroke();
       });
       
-      // Zīmē pašreizējo (vēl nepabeigto) polygonu
       if (currentPolygon.length > 0) {
         ctx.beginPath();
         ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
@@ -185,57 +183,47 @@
       }
     }
     
-    // Nolasām anotāciju faila saturu un pārvēršam to polygonu masīvā
-    function loadAnnotations(annotationFile, callback) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        const lines = content.split("\n");
-        let loadedPolygons = [];
-        for (let line of lines) {
-          line = line.trim();
-          if (!line) continue;
-          const tokens = line.split(/\s+/);
-          const cls = parseInt(tokens[0]);
-          let points = [];
-          for (let i = 1; i < tokens.length; i += 2) {
-            const relX = parseFloat(tokens[i]);
-            const relY = parseFloat(tokens[i+1]);
-            points.push({ x: relX * canvas.width, y: relY * canvas.height });
-          }
-          loadedPolygons.push({ points: points, class: cls });
+    function loadAnnotations(annotationText, callback) {
+      const lines = annotationText.split("\n");
+      let loadedPolygons = [];
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const tokens = line.split(/\s+/);
+        const cls = parseInt(tokens[0]);
+        let points = [];
+        for (let i = 1; i < tokens.length; i += 2) {
+          const relX = parseFloat(tokens[i]);
+          const relY = parseFloat(tokens[i+1]);
+          points.push({ x: relX * canvas.width, y: relY * canvas.height });
         }
-        callback(loadedPolygons);
-      };
-      reader.readAsText(annotationFile);
+        loadedPolygons.push({ points: points, class: cls });
+      }
+      callback(loadedPolygons);
     }
     
-    // Ielādē attēlu (un, ja pieejams, arī anotāciju) pēc indexa
+    // Ielādē attēlu pēc indeksu, izmantojot DataURL saglabātu images objektā
     function loadImage(index) {
       const data = images[index];
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        currentImageName = data.baseName;
-        image.onload = () => {
-          selectedPolygonIndex = null;
-          canvas.width = image.width;
-          canvas.height = image.height;
-          draw();
-          if (data.annotation) {
-            loadAnnotations(data.annotation, function(loadedPolys) {
-              polygons[currentImageName] = loadedPolys;
-              draw();
-              updateCounters();
-            });
-          } else {
-            polygons[currentImageName] = polygons[currentImageName] || [];
+      currentImageName = data.baseName;
+      image.onload = () => {
+        selectedPolygonIndex = null;
+        canvas.width = image.width;
+        canvas.height = image.height;
+        draw();
+        if (data.annotationText) {
+          loadAnnotations(data.annotationText, function(loadedPolys) {
+            polygons[currentImageName] = loadedPolys;
+            draw();
             updateCounters();
-          }
-          updateThumbnailPanel(); // Atjauno thumbnails paneli
-        };
-        image.src = e.target.result;
+          });
+        } else {
+          polygons[currentImageName] = polygons[currentImageName] || [];
+          updateCounters();
+        }
+        updateThumbnailPanel();
       };
-      reader.readAsDataURL(data.image);
+      image.src = data.dataUrl;
     }
     
     // Apstrāde, kad tiek augšupielādēti attēli un/vai .txt anotācijas
@@ -244,32 +232,52 @@
       if (newFiles.length === 0) return;
       
       let dataMap = {};
+      let readPromises = [];
+      
       newFiles.forEach(file => {
         const fileName = file.name;
         const lowerName = fileName.toLowerCase();
         const baseName = fileName.replace(/\.[^/.]+$/, "");
         if (!dataMap[baseName]) {
-          dataMap[baseName] = { baseName: baseName, image: null, annotation: null };
+          dataMap[baseName] = { baseName: baseName, dataUrl: null, annotationText: null };
         }
         if (lowerName.endsWith('.txt')) {
-          dataMap[baseName].annotation = file;
+          // Nolasa tekstu
+          readPromises.push(new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              dataMap[baseName].annotationText = e.target.result;
+              resolve();
+            };
+            reader.readAsText(file);
+          }));
         } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ||
                    lowerName.endsWith('.png') || lowerName.endsWith('.gif')) {
-          dataMap[baseName].image = file;
+          // Nolasa attēla DataURL
+          readPromises.push(new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              dataMap[baseName].dataUrl = e.target.result;
+              resolve();
+            };
+            reader.readAsDataURL(file);
+          }));
         }
       });
       
-      Object.values(dataMap).forEach(item => {
-        if (item.image) {
-          images.push(item);
+      Promise.all(readPromises).then(() => {
+        Object.values(dataMap).forEach(item => {
+          if (item.dataUrl) {
+            images.push(item);
+          }
+        });
+        if (!currentImageName && images.length > 0) {
+          imageIndex = 0;
+          loadImage(imageIndex);
         }
+        updateThumbnailPanel();
+        saveState();
       });
-      
-      if (!currentImageName && images.length > 0) {
-        imageIndex = 0;
-        loadImage(imageIndex);
-      }
-      updateThumbnailPanel();
       e.target.value = "";
     });
     
@@ -281,7 +289,6 @@
       tool = e.target.value;
     });
     
-    // Notikumu apstrāde uz canvas
     canvas.addEventListener('mousedown', function(e) {
       const x = (e.offsetX - offsetX) / zoom;
       const y = (e.offsetY - offsetY) / zoom;
@@ -512,13 +519,13 @@
       });
     }
     
-    // Thumbnail panelis: parāda attēlu previews
+    // Thumbnail panelis: parāda attēlu previews (bez reāllaika poligonu atjaunošanas)
     function updateThumbnailPanel() {
       const panel = document.getElementById('thumbnailBar');
       panel.innerHTML = "";
       images.forEach((item, idx) => {
         const thumb = document.createElement('img');
-        thumb.src = URL.createObjectURL(item.image);
+        thumb.src = item.dataUrl; // izmanto saglabāto DataURL
         thumb.style.width = "100%";
         thumb.style.marginBottom = "10px";
         thumb.style.cursor = "pointer";
@@ -536,44 +543,49 @@
       });
     }
     
-    // LocalStorage funkcionalitāte
-
-    // Funkcija, kas saglabā polygons datus uz localStorage
-    function saveToLocalStorage() {
+    // LocalStorage funkcionalitāte: saglabā un ielādē pilno stāvokli
+    function saveState() {
       try {
-        const serializedData = JSON.stringify(polygons);
-        localStorage.setItem('savedPolygons', serializedData);
+        const state = {
+          images: images,
+          polygons: polygons,
+          imageIndex: imageIndex
+        };
+        localStorage.setItem('annotatorState', JSON.stringify(state));
       } catch (e) {
-        console.error('Neizdevās saglabāt datus uz localStorage:', e);
+        console.error('Neizdevās saglabāt stāvokli uz localStorage:', e);
       }
     }
-
-    // Funkcija, kas ielādē polygons datus no localStorage (ja tādi ir)
-    function loadFromLocalStorage() {
+    
+    function loadState() {
       try {
-        const serializedData = localStorage.getItem('savedPolygons');
-        if (serializedData) {
-          polygons = JSON.parse(serializedData);
+        const stateJSON = localStorage.getItem('annotatorState');
+        if (stateJSON) {
+          const state = JSON.parse(stateJSON);
+          images = state.images || [];
+          polygons = state.polygons || {};
+          imageIndex = state.imageIndex || 0;
         }
       } catch (e) {
-        console.error('Neizdevās ielādēt datus no localStorage:', e);
+        console.error('Neizdevās ielādēt stāvokli no localStorage:', e);
       }
     }
-
-    // Modificējam saveHistory funkciju, lai katru reizi saglabātu arī localStorage
+    
+    // Modificējam saveHistory, lai saglabātu arī stāvokli
     const originalHistorySave = saveHistory;
     saveHistory = function() {
       originalHistorySave();
-      saveToLocalStorage();
+      saveState();
     };
-
-    // Kad lapa ielādējas, mēģina nolasīt saglabātos datus
+    
+    // Kad lapa ielādējas, mēģina nolasīt stāvokli
     window.addEventListener('load', () => {
-      loadFromLocalStorage();
-      // Ja saglabātie dati eksistē un ir atbilstība pašreizējam attēlam,
-      // atjaunina skaitītājus un zīmē (ja currentImageName ir iestatīts, to var vēlāk mainīt loadImage funkcijā)
+      loadState();
       updateCounters();
       draw();
+      if (images.length > 0) {
+        loadImage(imageIndex);
+      }
     });
   </script>
 </body>
