@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>YOLOv8 Segmentation Tool (Editable with .txt Annotations)</title>
-  <link rel="stylesheet" href="style-dark-modern-3-darker.css">
-  <style>
+<meta charset="utf-8"/>
+<title>YOLOv8 Segmentation Tool (Editable with .txt Annotations)</title>
+<link href="style-dark-modern-3-darker.css" rel="stylesheet"/>
+<style>
     /* Pārrakstām #toolbar inline stilu, lai tam būtu tumšs fons un kontrasts */
     #toolbar {
       position: fixed;
@@ -69,52 +70,47 @@
   z-index: 9999;
 }
 </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js">
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
-</script>
+
 </head>
 <body>
-<div id="teamLabel" class="team-label"></div>
+<div class="team-label" id="teamLabel"></div>
 <div id="exportStatus" style="padding:10px;color:white;font-weight:bold;"></div>
-  <div id="toolbar">
-    <label for="classSelect">Class:</label>
-    <select id="classSelect">
-      <option value="0">Car</option>
-      <option value="1">Free Parking Space</option>
-    </select>
-    <label for="toolSelect">Tool:</label>
-    <select id="toolSelect">
-      <option value="draw">Draw</option>
-      <option value="pan">Pan</option>
-      <option value="select">Select</option>
-      <option value="move">Move</option>
-    </select>
-    <button onclick="undoPoint()">Undo Point</button>
-    <button onclick="undoPolygon()">Undo Polygon</button>
-    <button onclick="completePolygon()">Complete Polygon</button>
-    <button onclick="prevImage()">Iepriekšējais</button>
-    <button onclick="nextImage()">Nākamais</button>
-    <button onclick="exportAnnotations(); exportAnnotationsToGitHub();">Export TXT</button>
-    <!-- Atbalsta arī .txt failu augšupielādi kopā ar attēliem -->
-    <input accept="image/*,.txt" id="imageLoader" multiple name="imageLoader" type="file"/>
-    <button onclick="deleteSelectedPolygon()">Delete Selected Polygon</button>
-    <button onclick="switchSelectedPolygonClass()">Switch Class</button>
-    <button onclick="undoAction()">Undo Action</button>
-    <button onclick="redoAction()">Redo Action</button>
-    <!-- Jauna poga pilna attēla dzēšanai -->
-    <button onclick="deleteImage()">Delete Image</button>
-    <div id="counters" style="margin-top:10px;">
-      <strong>Car Count:</strong> <span id="carCount">0</span> |
+<div id="toolbar">
+<label for="classSelect">Class:</label>
+<select id="classSelect">
+<option value="0">Car</option>
+<option value="1">Free Parking Space</option>
+</select>
+<label for="toolSelect">Tool:</label>
+<select id="toolSelect">
+<option value="draw">Draw</option>
+<option value="pan">Pan</option>
+<option value="select">Select</option>
+<option value="move">Move</option>
+</select>
+<button onclick="undoPoint()">Undo Point</button>
+<button onclick="undoPolygon()">Undo Polygon</button>
+<button onclick="completePolygon()">Complete Polygon</button>
+<button onclick="prevImage()">Iepriekšējais</button>
+<button onclick="nextImage()">Nākamais</button>
+<button onclick="exportAnnotations(); exportAnnotationsToGitHub();">Export TXT</button>
+<!-- Atbalsta arī .txt failu augšupielādi kopā ar attēliem -->
+<input accept="image/*,.txt" id="imageLoader" multiple="" name="imageLoader" type="file"/>
+<button onclick="deleteSelectedPolygon()">Delete Selected Polygon</button>
+<button onclick="switchSelectedPolygonClass()">Switch Class</button>
+<button onclick="undoAction()">Undo Action</button>
+<button onclick="redoAction()">Redo Action</button>
+<!-- Jauna poga pilna attēla dzēšanai -->
+<button onclick="deleteImage()">Delete Image</button>
+<div id="counters" style="margin-top:10px;">
+<strong>Car Count:</strong> <span id="carCount">0</span> |
       <strong>Free Space Count:</strong> <span id="freeCount">0</span>
-    </div>
-  </div>
-  <canvas id="canvas"></canvas>
-  <!-- Thumbnail panelis labajā pusē -->
-  <div id="thumbnailBar"></div>
-  
-  <script>
+</div>
+</div>
+<canvas id="canvas"></canvas>
+<!-- Thumbnail panelis labajā pusē -->
+<div id="thumbnailBar"></div>
+<script>
     // Globālie mainīgie
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -746,5 +742,61 @@ window.exportAnnotationsToGitHub = async function () {
       statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
     };
   </script>
-</body>
+<script>
+window.onload = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const secretKey = urlParams.get("secret") || "Unknown";
+  document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
+  window.secretKey = secretKey;
+};
+</script><script>
+window.exportAnnotationsToGitHub = async function () {
+  const configResp = await fetch("export-config.json");
+  const config = await configResp.json();
+  const apiUrl = config.apiEndpoint;
+  const folder = config.targetFolder;
+
+  let allExports = [];
+
+  for (const [fileName, anns] of Object.entries(polygons)) {
+    if (anns.length === 0) continue;
+    const lines = anns.map(p => {
+      const cls = p.class;
+      const coords = p.points.map(pt => \`\${(pt.x / canvas.width).toFixed(6)} \${(pt.y / canvas.height).toFixed(6)}\`).join(' ');
+      return \`\${cls} \${coords}\`;
+    }).join('\n');
+
+    const payload = {
+      filename: fileName.replace(/\.[^/.]+$/, ".txt"),
+      content: lines,
+      folder: folder,
+      secret: window.secretKey || "Unknown"
+    };
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      console.log(data);
+      if (res.ok) {
+        console.log(`✅ Exported ${payload.filename}`);
+        allExports.push(`✅ ${payload.filename}`);
+      } else {
+        console.error(`❌ Failed to export ${payload.filename}`, data);
+        allExports.push(`❌ ${payload.filename}`);
+      }
+    } catch (err) {
+      console.error(`❌ Error exporting ${payload.filename}`, err);
+      allExports.push(`❌ ${payload.filename}`);
+    }
+  }
+
+  const statusBox = document.getElementById('exportStatus');
+  statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
+};
+</script></body>
 </html>
