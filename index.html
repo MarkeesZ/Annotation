@@ -645,9 +645,6 @@ try {
       }
     });
   
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
 </script>
   <script>
 async function exportAnnotationsToGitHub() {
