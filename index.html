@@ -665,6 +665,7 @@ async function exportAnnotationsToGitHub() {
       filename: fileName.replace(/\.[^/.]+$/, ".txt"),
       content: lines,
       folder: folder
+      secret: secretKey
     };
 
     try {
