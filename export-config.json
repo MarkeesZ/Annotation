@@ -1,4 +1,4 @@
 {
-  "api_url": "https://smartaiparking.up.railway.app/export-to-github",
-  "default_folder": "annotations"
+  "apiEndpoint": "https://smartaiparking.up.railway.app/export-to-github",
+  "targetFolder": "annotations"
 }
