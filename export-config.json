@@ -1,4 +1,4 @@
 {
   "apiEndpoint": "https://smartaiparking.up.railway.app/export-to-github",
-  "targetFolder": "annotations"
+  "targetFolder": "Annotation"
 }
