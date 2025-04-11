@@ -292,11 +292,8 @@
     // Funkcija, lai dzēstu pilnu attēlu no projekta
     function deleteImage() {
       if (images.length === 0) return;
-      // Noņem attiecīgo attēlu no images masīva
       images.splice(imageIndex, 1);
-      // Arī noņem attiecīgo ierakstu polygons objektā
       delete polygons[currentImageName];
-      // Pielāgo imageIndex, ja nepieciešams
       if (imageIndex >= images.length) {
         imageIndex = images.length - 1;
       }
@@ -310,15 +307,13 @@
       saveState();
     }
     
-    // Funkcija, lai dzēstu izvēlēto poligonu – **pārvietots saveHistory() pēcpolieģa dzēšanas**
+    // Funkcija, lai dzēstu izvēlēto poligonu – saveHistory() tiek izsaukts pēc dzēšanas
     function deleteSelectedPolygon() {
       if (selectedPolygonIndex !== null && polygons[currentImageName]) {
-        // Noņem poligonu no saraksta
         polygons[currentImageName].splice(selectedPolygonIndex, 1);
         selectedPolygonIndex = null;
         draw();
         updateCounters();
-        // Saglabā atjaunināto stāvokli pēc dzēšanas
         saveHistory();
       }
     }
@@ -512,12 +507,12 @@
     
     function deleteSelectedPolygon() {
       if (selectedPolygonIndex !== null && polygons[currentImageName]) {
-        // Noņem poligonu no attiecīgā polygons saraksta...
+        // Noņem poligonu no saraksta
         polygons[currentImageName].splice(selectedPolygonIndex, 1);
         selectedPolygonIndex = null;
         draw();
         updateCounters();
-        // ...tad saglabā atjaunināto stāvokli
+        // Saglabā atjaunināto stāvokli pēc dzēšanas
         saveHistory();
       }
     }
@@ -564,7 +559,7 @@
       panel.innerHTML = "";
       images.forEach((item, idx) => {
         const thumb = document.createElement('img');
-        thumb.src = item.dataUrl; // izmanto saglabāto DataURL
+        thumb.src = item.dataUrl;
         thumb.style.width = "100%";
         thumb.style.marginBottom = "10px";
         thumb.style.cursor = "pointer";
