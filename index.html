@@ -35,7 +35,7 @@
     /* Thumbnail panelis - fiksēts labajā pusē, skrollējams, nobīdīts uz leju, lai neslēptu pogas */
     #thumbnailBar {
       position: fixed;
-      top: 110px;   /* nobīdīts uz leju, lai tiktu pie pogām (piemēram, redo) */
+      top: 110px;   /* nobīdīts uz leju */
       bottom: 0;
       right: 0;
       width: 150px;
@@ -204,7 +204,7 @@
       callback(loadedPolygons);
     }
     
-    // Ielādē attēlu pēc indeksa, izmantojot DataURL
+    // Ielādē attēlu pēc indeksa, izmantojot saglabāto DataURL
     function loadImage(index) {
       const data = images[index];
       currentImageName = data.baseName;
@@ -292,11 +292,11 @@
     // Funkcija, lai dzēstu pilnu attēlu no projekta
     function deleteImage() {
       if (images.length === 0) return;
-      // Noņem attēlu no images masīva
+      // Noņem attiecīgo attēlu no images masīva
       images.splice(imageIndex, 1);
-      // Noņem arī polygons ierakstu par šo attēlu, ja tāds eksistē
+      // Arī noņem attiecīgo ierakstu polygons objektā
       delete polygons[currentImageName];
-      
+      // Pielāgo imageIndex, ja nepieciešams
       if (imageIndex >= images.length) {
         imageIndex = images.length - 1;
       }
@@ -310,14 +310,214 @@
       saveState();
     }
     
-    // Funkcija, lai dzēstu izvēlēto polygonu (tagad izsauc saveHistory() pēc dzēšanas)
+    // Funkcija, lai dzēstu izvēlēto poligonu – **pārvietots saveHistory() pēcpolieģa dzēšanas**
     function deleteSelectedPolygon() {
       if (selectedPolygonIndex !== null && polygons[currentImageName]) {
-        // Noņem polygonu pirms saglabāšanas
+        // Noņem poligonu no saraksta
         polygons[currentImageName].splice(selectedPolygonIndex, 1);
         selectedPolygonIndex = null;
         draw();
         updateCounters();
+        // Saglabā atjaunināto stāvokli pēc dzēšanas
+        saveHistory();
+      }
+    }
+    
+    // Notikumu apstrāde uz canvas
+    canvas.addEventListener('mousedown', function(e) {
+      const x = (e.offsetX - offsetX) / zoom;
+      const y = (e.offsetY - offsetY) / zoom;
+      
+      if (tool === 'pan') {
+        isPanning = true;
+        startX = e.clientX - offsetX;
+        startY = e.clientY - offsetY;
+      } else if (tool === 'draw') {
+        currentPolygon.push({ x, y });
+        draw();
+      } else if (tool === 'select') {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const relX = (mouseX - offsetX) / zoom;
+        const relY = (mouseY - offsetY) / zoom;
+        const polys = polygons[currentImageName] || [];
+        selectedPolygonIndex = null;
+        for (let i = 0; i < polys.length; i++) {
+          if (pointInPolygon(relX, relY, polys[i].points)) {
+            selectedPolygonIndex = i;
+            break;
+          }
+        }
+        draw();
+      } else if (tool === 'move') {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - offsetX) / zoom;
+        const mouseY = (e.clientY - rect.top - offsetY) / zoom;
+        const polys = polygons[currentImageName] || [];
+        selectedPolygonIndex = null;
+        for (let i = 0; i < polys.length; i++) {
+          if (pointInPolygon(mouseX, mouseY, polys[i].points)) {
+            selectedPolygonIndex = i;
+            isDraggingPolygon = true;
+            dragOffset = { x: mouseX, y: mouseY };
+            break;
+          }
+        }
+      }
+    });
+    
+    canvas.addEventListener('mouseup', function(e) {
+      isPanning = false;
+      if (draggingPoint !== null) {
+        saveHistory();
+        draggingPoint = null;
+        canvas.style.cursor = 'default';
+      }
+      if (tool === 'move' && isDraggingPolygon) {
+        saveHistory();
+        isDraggingPolygon = false;
+      }
+    });
+    
+    canvas.addEventListener('mousemove', function(e) {
+      if (tool === 'pan' && isPanning) {
+        offsetX = e.clientX - startX;
+        offsetY = e.clientY - startY;
+        draw();
+      }
+      if (tool === 'move' && isDraggingPolygon && selectedPolygonIndex !== null) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - offsetX) / zoom;
+        const mouseY = (e.clientY - rect.top - offsetY) / zoom;
+        const dx = mouseX - dragOffset.x;
+        const dy = mouseY - dragOffset.y;
+        let polygon = polygons[currentImageName][selectedPolygonIndex];
+        polygon.points = polygon.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        dragOffset = { x: mouseX, y: mouseY };
+        draw();
+      }
+    });
+    
+    canvas.addEventListener('wheel', function(e) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const x = (mouseX - offsetX) / zoom;
+        const y = (mouseY - offsetY) / zoom;
+        const delta = -e.deltaY / 1000;
+        const newZoom = Math.min(Math.max(zoom + delta, 0.1), 10);
+        offsetX -= (x * newZoom - x * zoom);
+        offsetY -= (y * newZoom - y * zoom);
+        zoom = newZoom;
+        draw();
+      }
+    });
+    
+    let draggingPoint = null;
+    let isDraggingPolygon = false;
+    let dragOffset = { x: 0, y: 0 };
+    
+    canvas.addEventListener('mousedown', function(e) {
+      if (tool === 'select' && selectedPolygonIndex !== null) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - offsetX) / zoom;
+        const mouseY = (e.clientY - rect.top - offsetY) / zoom;
+        const polygon = polygons[currentImageName][selectedPolygonIndex].points;
+        for (let i = 0; i < polygon.length; i++) {
+          const pt = polygon[i];
+          const dx = pt.x - mouseX;
+          const dy = pt.y - mouseY;
+          if (Math.sqrt(dx * dx + dy * dy) < 10 / zoom) {
+            draggingPoint = i;
+            canvas.style.cursor = 'grabbing';
+            break;
+          }
+        }
+      }
+    });
+    
+    canvas.addEventListener('mousemove', function(e) {
+      if (draggingPoint !== null && selectedPolygonIndex !== null && tool === 'select') {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - offsetX) / zoom;
+        const mouseY = (e.clientY - rect.top - offsetY) / zoom;
+        polygons[currentImageName][selectedPolygonIndex].points[draggingPoint] = { x: mouseX, y: mouseY };
+        draw();
+      }
+    });
+    
+    canvas.addEventListener('mouseup', function(e) {
+      if (draggingPoint !== null && tool === 'select') {
+        saveHistory();
+        draggingPoint = null;
+        canvas.style.cursor = 'default';
+        updateCounters();
+      }
+    });
+    
+    function completePolygon() {
+      if (!polygons[currentImageName]) polygons[currentImageName] = [];
+      currentPolygon.class = currentClass;
+      saveHistory();
+      polygons[currentImageName].push({ points: [...currentPolygon], class: currentClass });
+      currentPolygon = [];
+      draw();
+      updateCounters();
+    }
+    
+    function undoPoint() {
+      currentPolygon.pop();
+      draw();
+    }
+    
+    function undoPolygon() {
+      if (polygons[currentImageName]) {
+        saveHistory();
+        polygons[currentImageName].pop();
+        draw();
+        updateCounters();
+      }
+    }
+    
+    function undoAction() {
+      if (historyStack.length > 0) {
+        redoStack.push(JSON.parse(JSON.stringify(polygons)));
+        polygons = historyStack.pop();
+        draw();
+        updateCounters();
+      }
+    }
+    
+    function redoAction() {
+      if (redoStack.length > 0) {
+        historyStack.push(JSON.parse(JSON.stringify(polygons)));
+        polygons = redoStack.pop();
+        draw();
+        updateCounters();
+      }
+    }
+    
+    function switchSelectedPolygonClass() {
+      if (selectedPolygonIndex !== null && polygons[currentImageName]) {
+        saveHistory();
+        const polygon = polygons[currentImageName][selectedPolygonIndex];
+        polygon.class = (polygon.class === 0 ? 1 : 0);
+        draw();
+        updateCounters();
+      }
+    }
+    
+    function deleteSelectedPolygon() {
+      if (selectedPolygonIndex !== null && polygons[currentImageName]) {
+        // Noņem poligonu no attiecīgā polygons saraksta...
+        polygons[currentImageName].splice(selectedPolygonIndex, 1);
+        selectedPolygonIndex = null;
+        draw();
+        updateCounters();
+        // ...tad saglabā atjaunināto stāvokli
         saveHistory();
       }
     }
@@ -341,7 +541,7 @@
     function exportAnnotations() {
       const zip = new JSZip();
       for (const [fileName, anns] of Object.entries(polygons)) {
-        if (anns.length > 0) { // Eksportē tikai, ja saraksts nav tukšs
+        if (anns.length > 0) {  // Eksportē tikai, ja saraksts nav tukšs
           const lines = anns.map(p => {
             const cls = p.class;
             const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
@@ -364,7 +564,7 @@
       panel.innerHTML = "";
       images.forEach((item, idx) => {
         const thumb = document.createElement('img');
-        thumb.src = item.dataUrl;
+        thumb.src = item.dataUrl; // izmanto saglabāto DataURL
         thumb.style.width = "100%";
         thumb.style.marginBottom = "10px";
         thumb.style.cursor = "pointer";
@@ -417,7 +617,6 @@
       saveState();
     };
     
-    // Kad lapa ielādējas, mēģina nolasīt stāvokli
     window.addEventListener('load', () => {
       loadState();
       updateCounters();
