@@ -694,10 +694,6 @@ if (res.ok) {
   const statusBox = document.getElementById('exportStatus');
   statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
 }
-
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
 </script>
 
 <script>
