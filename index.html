@@ -55,28 +55,10 @@
       cursor: pointer;
       border: 1px solid #ccc;
     }
-  
-.team-label {
-  position: fixed;
-  top: 10px;
-  right: 20px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #00ff88;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  font-family: monospace;
-  z-index: 9999;
-}
-</style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js">
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
-</script>
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 </head>
 <body>
-<div id="teamLabel" class="team-label"></div>
 <div id="exportStatus" style="padding:10px;color:white;font-weight:bold;"></div>
   <div id="toolbar">
     <label for="classSelect">Class:</label>
@@ -639,11 +621,7 @@ document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
         loadImage(imageIndex);
       }
     });
-  
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
-</script>
+  </script>
   <script>
 async function exportAnnotationsToGitHub() {
   const configResp = await fetch("export-config.json");
@@ -664,8 +642,7 @@ async function exportAnnotationsToGitHub() {
     const payload = {
       filename: fileName.replace(/\.[^/.]+$/, ".txt"),
       content: lines,
-      folder: folder,
-      secret: secretKey
+      folder: folder
     };
 
     try {
@@ -692,10 +669,6 @@ async function exportAnnotationsToGitHub() {
   const statusBox = document.getElementById('exportStatus');
   statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
 }
-
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
 </script>
 </body>
 </html>
