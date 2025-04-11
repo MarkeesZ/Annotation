@@ -70,9 +70,14 @@
 }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-const urlParams = new URLSearchParams(window.location.search);
-const secretKey = urlParams.get("secret") || "Unknown";
-document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
+<script>
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const secretKey = urlParams.get("secret") || "Unknown";
+  document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
+} catch (err) {
+  console.error("Caught early script error:", err);
+}
 </script>
 </head>
 <body>
