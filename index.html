@@ -69,7 +69,7 @@
   z-index: 9999;
 }
 </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 const urlParams = new URLSearchParams(window.location.search);
 const secretKey = urlParams.get("secret") || "Unknown";
 document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
@@ -603,7 +603,7 @@ document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
           images: images,
           polygons: polygons,
           imageIndex: imageIndex
-        } catch (e) { console.error(e); };
+        };
         localStorage.setItem('annotatorState', JSON.stringify(state));
       } catch (e) {
         console.error('Neizdevās saglabāt stāvokli uz localStorage:', e);
@@ -616,7 +616,7 @@ document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
         if (stateJSON) {
           const state = JSON.parse(stateJSON);
           images = state.images || [];
-          polygons = state.polygons || {} catch (e) { console.error(e); };
+          polygons = state.polygons || {};
           imageIndex = state.imageIndex || 0;
         }
       } catch (e) {
@@ -645,7 +645,7 @@ const secretKey = urlParams.get("secret") || "Unknown";
 document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
 </script>
   <script>
-window.exportAnnotationsToGitHub = async function() {
+async function exportAnnotationsToGitHub() {
   const configResp = await fetch("export-config.json");
   const config = await configResp.json();
   const apiUrl = config.apiEndpoint;
@@ -671,7 +671,7 @@ window.exportAnnotationsToGitHub = async function() {
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" } catch (e) { console.error(e); },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
@@ -693,6 +693,67 @@ if (res.ok) {
 const urlParams = new URLSearchParams(window.location.search);
 const secretKey = urlParams.get("secret") || "Unknown";
 document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
+</script>
+
+<script>
+window.onload = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const secretKey = urlParams.get("secret") || "Unknown";
+  document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
+  window.secretKey = secretKey;
+
+  window.exportAnnotationsToGitHub = async function () {
+    const configResp = await fetch("export-config.json");
+    const config = await configResp.json();
+    const apiUrl = config.apiEndpoint;
+    const folder = config.targetFolder;
+
+    let allExports = [];
+
+    for (const [fileName, anns] of Object.entries(polygons)) {
+      if (anns.length === 0) continue;
+      const lines = anns.map(p => {
+        const cls = p.class;
+        const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
+        return `${cls} ${coords}`;
+      }).join('
+');
+
+      const payload = {
+        filename: fileName.replace(/\.[^/.]+$/, ".txt"),
+        content: lines,
+        folder: folder,
+        secret: secretKey
+      };
+
+      try {
+        const res = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        console.log(data);
+        if (res.ok) {
+          console.log(`✅ Exported ${payload.filename}`);
+          allExports.push(`✅ ${payload.filename}`);
+        } else {
+          console.error(`❌ Failed to export ${payload.filename}`, data);
+          allExports.push(`❌ ${payload.filename}`);
+        }
+      } catch (err) {
+        console.error(`❌ Error exporting ${payload.filename}`, err);
+        allExports.push(`❌ ${payload.filename}`);
+      }
+    }
+
+    const statusBox = document.getElementById('exportStatus');
+    statusBox.textContent = "📦 Export summary:
+" + allExports.join('
+');
+  };
+};
 </script>
 </body>
 </html>
