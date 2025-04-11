@@ -35,7 +35,7 @@
     /* Thumbnail panelis - fiksēts labajā pusē, skrollējams, nobīdīts uz leju, lai neslēptu pogas */
     #thumbnailBar {
       position: fixed;
-      top: 110px;   /* nobīdīts uz leju */
+      top: 110px;
       bottom: 0;
       right: 0;
       width: 150px;
@@ -59,7 +59,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 </head>
 <body>
-<div id="exportStatus" style="padding:10px;color:white;font-weight:bold;"></div>
+  <div id="exportStatus" style="padding:10px;color:white;font-weight:bold;"></div>
   <div id="toolbar">
     <label for="classSelect">Class:</label>
     <select id="classSelect">
@@ -103,11 +103,11 @@
     const imageLoader = document.getElementById('imageLoader');
     let currentClass = 0;
     let tool = 'draw';
-    // "images" masīvā saglabājam objektus ar īpašībām: baseName, dataUrl, annotationText (ja ir)
+    // Masīvs attēlu objektu saglabāšanai
     let images = [];
     let imageIndex = 0;
     let image = new Image();
-    // polygons objekts saglabā polygonu datus atslēgā pēc attēla baseName
+    // Objektu glabāšanai ar anotācijām, atslēga - attēla baseName
     let polygons = {};
     let currentPolygon = [];
     let isPanning = false;
@@ -117,7 +117,7 @@
     let selectedPolygonIndex = null;
     let currentImageName = '';
 
-    // History steki undo/redo
+    // Undo/redo steki
     let historyStack = [];
     let redoStack = [];
     
@@ -205,7 +205,6 @@
       callback(loadedPolygons);
     }
     
-    // Ielādē attēlu pēc indeksa, izmantojot saglabāto DataURL
     function loadImage(index) {
       const data = images[index];
       currentImageName = data.baseName;
@@ -229,7 +228,6 @@
       image.src = data.dataUrl;
     }
     
-    // Apstrāde, kad tiek augšupielādēti attēli un/vai .txt anotācijas
     imageLoader.addEventListener('change', function(e) {
       const newFiles = Array.from(e.target.files);
       if (newFiles.length === 0) return;
@@ -290,7 +288,6 @@
       tool = e.target.value;
     });
     
-    // Funkcija, lai dzēstu pilnu attēlu no projekta
     function deleteImage() {
       if (images.length === 0) return;
       images.splice(imageIndex, 1);
@@ -308,7 +305,6 @@
       saveState();
     }
     
-    // Funkcija, lai dzēstu izvēlēto poligonu – saveHistory() tiek izsaukts pēc dzēšanas
     function deleteSelectedPolygon() {
       if (selectedPolygonIndex !== null && polygons[currentImageName]) {
         polygons[currentImageName].splice(selectedPolygonIndex, 1);
@@ -319,7 +315,6 @@
       }
     }
     
-    // Notikumu apstrāde uz canvas
     canvas.addEventListener('mousedown', function(e) {
       const x = (e.offsetX - offsetX) / zoom;
       const y = (e.offsetY - offsetY) / zoom;
@@ -508,12 +503,10 @@
     
     function deleteSelectedPolygon() {
       if (selectedPolygonIndex !== null && polygons[currentImageName]) {
-        // Noņem poligonu no saraksta
         polygons[currentImageName].splice(selectedPolygonIndex, 1);
         selectedPolygonIndex = null;
         draw();
         updateCounters();
-        // Saglabā atjaunināto stāvokli pēc dzēšanas
         saveHistory();
       }
     }
@@ -554,7 +547,6 @@
       });
     }
     
-    // Thumbnail panelis: parāda attēlu previews
     function updateThumbnailPanel() {
       const panel = document.getElementById('thumbnailBar');
       panel.innerHTML = "";
@@ -578,7 +570,6 @@
       });
     }
     
-    // LocalStorage funkcionalitāte: saglabā un ielādē pilno stāvokli
     function saveState() {
       try {
         const state = {
@@ -606,7 +597,6 @@
       }
     }
     
-    // Modificējam saveHistory, lai saglabātu arī stāvokli
     const originalHistorySave = saveHistory;
     saveHistory = function() {
       originalHistorySave();
@@ -623,59 +613,59 @@
     });
   </script>
   <script>
-async function exportAnnotationsToGitHub() {
-  // Nolasām konfigurāciju
-  const configResp = await fetch("export-config.json");
-  const config = await configResp.json();
-  const apiUrl = config.apiEndpoint;
-  const folder = config.targetFolder;
-
-  // Izvelkam secret vērtību no URL parametriem
-  const urlParams = new URLSearchParams(window.location.search);
-  const secretKey = urlParams.get('secret');
-
-  let allExports = [];
-
-  for (const [fileName, anns] of Object.entries(polygons)) {
-    if (anns.length === 0) continue;
-    const lines = anns.map(p => {
-      const cls = p.class;
-      const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
-      return `${cls} ${coords}`;
-    }).join('\n');
-
-    // Pievienojam secret atslēgu payload objektā
-    const payload = {
-      filename: fileName.replace(/\.[^/.]+$/, ".txt"),
-      content: lines,
-      folder: folder,
-      secret: secretKey
-    };
-
-    try {
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        console.log(`✅ Exported ${payload.filename}`);
-        allExports.push(`✅ ${payload.filename}`);
-      } else {
-        console.error(`❌ Failed to export ${payload.filename}`, data);
-        allExports.push(`❌ ${payload.filename}`);
+    async function exportAnnotationsToGitHub() {
+      // Nolasām konfigurāciju
+      const configResp = await fetch("export-config.json");
+      const config = await configResp.json();
+      const apiUrl = config.apiEndpoint;
+      const folder = config.targetFolder;
+    
+      // Izvelkam secret vērtību no URL parametriem
+      const urlParams = new URLSearchParams(window.location.search);
+      const secretKey = urlParams.get('secret');
+    
+      let allExports = [];
+    
+      for (const [fileName, anns] of Object.entries(polygons)) {
+        if (anns.length === 0) continue;
+        const lines = anns.map(p => {
+          const cls = p.class;
+          const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
+          return `${cls} ${coords}`;
+        }).join('\n');
+    
+        // Pievienojam secret atslēgu payload objektā
+        const payload = {
+          filename: fileName.replace(/\.[^/.]+$/, ".txt"),
+          content: lines,
+          folder: folder,
+          secret: secretKey
+        };
+    
+        try {
+          const res = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+    
+          const data = await res.json();
+          if (res.ok) {
+            console.log(`✅ Exported ${payload.filename}`);
+            allExports.push(`✅ ${payload.filename}`);
+          } else {
+            console.error(`❌ Failed to export ${payload.filename}`, data);
+            allExports.push(`❌ ${payload.filename}`);
+          }
+        } catch (err) {
+          console.error(`❌ Error exporting ${payload.filename}`, err);
+          allExports.push(`❌ ${payload.filename}`);
+        }
       }
-    } catch (err) {
-      console.error(`❌ Error exporting ${payload.filename}`, err);
-      allExports.push(`❌ ${payload.filename}`);
+    
+      const statusBox = document.getElementById('exportStatus');
+      statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
     }
-  }
-
-  const statusBox = document.getElementById('exportStatus');
-  statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
-}
-</script>
+  </script>
 </body>
 </html>
