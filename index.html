@@ -664,7 +664,7 @@ async function exportAnnotationsToGitHub() {
     const payload = {
       filename: fileName.replace(/\.[^/.]+$/, ".txt"),
       content: lines,
-      folder: folder
+      folder: folder,
       secret: secretKey
     };
 
