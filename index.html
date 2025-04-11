@@ -624,10 +624,15 @@
   </script>
   <script>
 async function exportAnnotationsToGitHub() {
+  // Nolasām konfigurāciju
   const configResp = await fetch("export-config.json");
   const config = await configResp.json();
   const apiUrl = config.apiEndpoint;
   const folder = config.targetFolder;
+
+  // Izvelkam secret vērtību no URL parametriem
+  const urlParams = new URLSearchParams(window.location.search);
+  const secretKey = urlParams.get('secret');
 
   let allExports = [];
 
@@ -639,10 +644,12 @@ async function exportAnnotationsToGitHub() {
       return `${cls} ${coords}`;
     }).join('\n');
 
+    // Pievienojam secret atslēgu payload objektā
     const payload = {
       filename: fileName.replace(/\.[^/.]+$/, ".txt"),
       content: lines,
-      folder: folder
+      folder: folder,
+      secret: secretKey
     };
 
     try {
