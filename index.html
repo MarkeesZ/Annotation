@@ -692,6 +692,7 @@ window.exportAnnotationsToGitHub = async function () {
   const statusBox = document.getElementById('exportStatus');
   statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
 };
+    <script>
 <script>
 window.exportAnnotationsToGitHub = async function () {
   const configResp = await fetch("export-config.json");
