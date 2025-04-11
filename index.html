@@ -10,7 +10,7 @@
       position: fixed;
       top: 10px;
       left: 10px;
-      background: #2b2b2b;
+      background: #2b2b2b; /* Tumšs fons nodrošina kontrastu ar balto tekstu */
       padding: 10px;
       z-index: 100;
       display: flex;
@@ -28,7 +28,7 @@
       margin-right: 160px;
       display: block;
       margin-left: auto;
-      margin-top: 80px;
+      margin-top: 80px; /* ja nepieciešams, pielāgo vertikāli */
       border: 1px solid black;
       cursor: crosshair;
     }
@@ -84,6 +84,8 @@
     <button onclick="switchSelectedPolygonClass()">Switch Class</button>
     <button onclick="undoAction()">Undo Action</button>
     <button onclick="redoAction()">Redo Action</button>
+    <!-- Jauna poga pilna attēla dzēšanai -->
+    <button onclick="deleteImage()">Delete Image</button>
     <div id="counters" style="margin-top:10px;">
       <strong>Car Count:</strong> <span id="carCount">0</span> |
       <strong>Free Space Count:</strong> <span id="freeCount">0</span>
@@ -202,7 +204,7 @@
       callback(loadedPolygons);
     }
     
-    // Ielādē attēlu pēc indeksu, izmantojot DataURL saglabātu images objektā
+    // Ielādē attēlu pēc indeksa, izmantojot saglabāto DataURL
     function loadImage(index) {
       const data = images[index];
       currentImageName = data.baseName;
@@ -242,7 +244,6 @@
           dataMap[baseName] = { baseName: baseName, dataUrl: null, annotationText: null };
         }
         if (lowerName.endsWith('.txt')) {
-          // Nolasa tekstu
           readPromises.push(new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -253,7 +254,6 @@
           }));
         } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ||
                    lowerName.endsWith('.png') || lowerName.endsWith('.gif')) {
-          // Nolasa attēla DataURL
           readPromises.push(new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -289,6 +289,28 @@
       tool = e.target.value;
     });
     
+    // Funkcija, lai dzēstu pilnu attēlu no projekta
+    function deleteImage() {
+      if (images.length === 0) return;
+      // Noņem attiecīgo attēlu no images masīva
+      images.splice(imageIndex, 1);
+      // Ja izdzēstais attēls bija pēdējais, pielāgo imageIndex
+      if (imageIndex >= images.length) {
+        imageIndex = images.length - 1;
+      }
+      // Atjauno stāvokli
+      if (images.length > 0) {
+        loadImage(imageIndex);
+      } else {
+        // Ja nav attēlu, notīra canvas un currentImageName
+        currentImageName = "";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      updateThumbnailPanel();
+      saveState();
+    }
+    
+    // Notikumu apstrāde uz canvas
     canvas.addEventListener('mousedown', function(e) {
       const x = (e.offsetX - offsetX) / zoom;
       const y = (e.offsetY - offsetY) / zoom;
@@ -519,7 +541,7 @@
       });
     }
     
-    // Thumbnail panelis: parāda attēlu previews (bez reāllaika poligonu atjaunošanas)
+    // Thumbnail panelis: parāda attēlu previews
     function updateThumbnailPanel() {
       const panel = document.getElementById('thumbnailBar');
       panel.innerHTML = "";
@@ -577,6 +599,25 @@
       originalHistorySave();
       saveState();
     };
+    
+    // Funkcija dzēst pilnu attēlu (delete image)
+    function deleteImage() {
+      if (images.length === 0) return;
+      // Noņem attēlu no images masīva
+      images.splice(imageIndex, 1);
+      // Pielāgo imageIndex, ja nepieciešams
+      if (imageIndex >= images.length) {
+        imageIndex = images.length - 1;
+      }
+      if (images.length > 0) {
+        loadImage(imageIndex);
+      } else {
+        currentImageName = "";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      updateThumbnailPanel();
+      saveState();
+    }
     
     // Kad lapa ielādējas, mēģina nolasīt stāvokli
     window.addEventListener('load', () => {
