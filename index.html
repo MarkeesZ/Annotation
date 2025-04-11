@@ -703,30 +703,31 @@ window.onload = () => {
   window.secretKey = secretKey;
 
   window.exportAnnotationsToGitHub = async function () {
-    const configResp = await fetch("export-config.json");
-    const config = await configResp.json();
-    const apiUrl = config.apiEndpoint;
-    const folder = config.targetFolder;
+    try {
+      const configResp = await fetch("export-config.json");
+      const config = await configResp.json();
+      const apiUrl = config.apiEndpoint;
+      const folder = config.targetFolder;
 
-    let allExports = [];
+      let allExports = [];
 
-    for (const [fileName, anns] of Object.entries(polygons)) {
-      if (anns.length === 0) continue;
-      const lines = anns.map(p => {
-        const cls = p.class;
-        const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
-        return `${cls} ${coords}`;
-      }).join('
-');
+      for (const [fileName, anns] of Object.entries(polygons)) {
+        if (anns.length === 0) continue;
+        const lines = anns.map(p => {
+          const cls = p.class;
+          const coords = p.points.map(pt =>
+            `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`
+          ).join(' ');
+          return `${cls} ${coords}`;
+        }).join('\n');
 
-      const payload = {
-        filename: fileName.replace(/\.[^/.]+$/, ".txt"),
-        content: lines,
-        folder: folder,
-        secret: secretKey
-      };
+        const payload = {
+          filename: fileName.replace(/\.[^/.]+$/, ".txt"),
+          content: lines,
+          folder: folder,
+          secret: secretKey
+        };
 
-      try {
         const res = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -742,16 +743,14 @@ window.onload = () => {
           console.error(`❌ Failed to export ${payload.filename}`, data);
           allExports.push(`❌ ${payload.filename}`);
         }
-      } catch (err) {
-        console.error(`❌ Error exporting ${payload.filename}`, err);
-        allExports.push(`❌ ${payload.filename}`);
       }
-    }
 
-    const statusBox = document.getElementById('exportStatus');
-    statusBox.textContent = "📦 Export summary:
-" + allExports.join('
-');
+      const statusBox = document.getElementById('exportStatus');
+      statusBox.textContent = "📦 Export summary:\n" + allExports.join('\n');
+    } catch (error) {
+      console.error("Export error:", error);
+      document.getElementById('exportStatus').textContent = "❌ Export error: " + error.message;
+    }
   };
 };
 </script>
