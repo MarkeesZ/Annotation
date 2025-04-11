@@ -676,17 +676,14 @@ async function exportAnnotationsToGitHub() {
       });
 
       const data = await res.json();
-      if (res.ok) {
-        console.log(`✅ Exported ${payload.filename}`);
-        allExports.push(`✅ ${payload.filename}`);
-      } else {
-        console.error(`❌ Failed to export ${payload.filename}`, data);
-        allExports.push(`❌ ${payload.filename}`);
-      }
-    } catch (err) {
-      console.error(`❌ Error exporting ${payload.filename}`, err);
-      allExports.push(`❌ ${payload.filename}`);
-    }
+console.log(data); // debug log API atbildi uz DevTools
+if (res.ok) {
+  console.log(`✅ Exported ${payload.filename}`);
+  allExports.push(`✅ ${payload.filename}`);
+} else {
+  console.error(`❌ Failed to export ${payload.filename}`, data);
+  allExports.push(`❌ ${payload.filename}`);
+}
   }
 
   const statusBox = document.getElementById('exportStatus');
