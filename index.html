@@ -115,7 +115,8 @@ document.getElementById("teamLabel").textContent = `Team: ${secretKey}`;
   <div id="thumbnailBar"></div>
   
   <script>
-    // Globālie mainīgie
+    try {
+// Globālie mainīgie
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const imageLoader = document.getElementById('imageLoader');
@@ -756,3 +757,7 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
+} catch (err) {
+  console.error("Caught early script error:", err);
+}
