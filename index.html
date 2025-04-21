@@ -94,7 +94,7 @@
     <button onclick="nextImage()">Nākamais</button>
     <button onclick="exportAnnotations(); exportAnnotationsToGitHub();">Export TXT</button>
     <!-- Atbalsta arī .txt failu augšupielādi kopā ar attēliem -->
-    <input accept="image/*,.txt" id="imageLoader" multiple name="imageLoader" type="file"/>
+    <input accept="image/*,.txt,.zip" id="imageLoader" multiple name="imageLoader" type="file"/>
     <button onclick="deleteSelectedPolygon()">Delete Selected Polygon</button>
     <button onclick="switchSelectedPolygonClass()">Switch Class</button>
     <button onclick="undoAction()">Undo Action</button>
@@ -267,6 +267,30 @@
           }));
         } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ||
                    lowerName.endsWith('.png') || lowerName.endsWith('.gif')) {
+      } else if (lowerName.endsWith('.zip')) {
+        readPromises.push(new Promise((resolve) => {
+          JSZip.loadAsync(file).then(zip => {
+            const innerReadPromises = [];
+            zip.forEach((relativePath, zipEntry) => {
+              const lowerPath = zipEntry.name.toLowerCase();
+              const baseName = zipEntry.name.replace(/\.[^/.]+$/, "");
+              if (!dataMap[baseName]) {
+                dataMap[baseName] = { baseName: baseName, dataUrl: null, annotationText: null };
+              }
+              if (lowerPath.endsWith('.txt')) {
+                innerReadPromises.push(zipEntry.async('string').then(text => {
+                  dataMap[baseName].annotationText = text;
+                }));
+              } else if (lowerPath.match(/\.(jpg|jpeg|png|gif)$/)) {
+                innerReadPromises.push(zipEntry.async('base64').then(data => {
+                  dataMap[baseName].dataUrl = "data:image/*;base64," + data;
+                }));
+              }
+            });
+            Promise.all(innerReadPromises).then(resolve);
+          });
+        }));
+
           readPromises.push(new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function(e) {
