@@ -550,7 +550,7 @@
             const coords = p.points.map(pt => `${(pt.x / canvas.width).toFixed(6)} ${(pt.y / canvas.height).toFixed(6)}`).join(' ');
             return `${cls} ${coords}`;
           }).join('\n');
-          zip.file(fileName.replace(/\.[^/.]+$/, ".txt"), lines);
+          zip.file(`${fileName}.txt`, lines);
         }
       }
       zip.generateAsync({ type: "blob" }).then(content => {
