@@ -626,6 +626,87 @@
       }
     });
   </script>
+
+  <!-- 1) Paplašinām accept atribūtu: -->
+<input accept="image/*,.txt,.zip" id="imageLoader" multiple name="imageLoader" type="file"/>
+
+<script>
+  imageLoader.addEventListener('change', function(e) {
+    const newFiles = Array.from(e.target.files);
+    if (newFiles.length === 0) return;
+
+    let dataMap = {};
+    let readPromises = [];
+
+    newFiles.forEach(file => {
+      const fileName = file.name;
+      const lowerName = fileName.toLowerCase();
+      const baseName = fileName.replace(/\.[^/.]+$/, "");
+      if (!dataMap[baseName]) {
+        dataMap[baseName] = { baseName: baseName, dataUrl: null, annotationText: null };
+      }
+
+      // ** JAUNUMS: ZIP failu atbalsts **
+      if (lowerName.endsWith('.zip')) {
+        readPromises.push(
+          JSZip.loadAsync(file).then(zip => {
+            const innerPromises = [];
+            zip.forEach((relativePath, zipEntry) => {
+              if (zipEntry.name.toLowerCase().endsWith('.txt')) {
+                innerPromises.push(
+                  zipEntry.async('string').then(content => {
+                    const innerBase = zipEntry.name.replace(/\.[^/.]+$/, "");
+                    if (!dataMap[innerBase]) {
+                      dataMap[innerBase] = { baseName: innerBase, dataUrl: null, annotationText: null };
+                    }
+                    dataMap[innerBase].annotationText = content;
+                  })
+                );
+              }
+            });
+            return Promise.all(innerPromises);
+          })
+        );
+      }
+      // ----------------------------------------------------------------
+
+      else if (lowerName.endsWith('.txt')) {
+        readPromises.push(new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            dataMap[baseName].annotationText = e.target.result;
+            resolve();
+          };
+          reader.readAsText(file);
+        }));
+      } else if (lowerName.match(/\.(jpe?g|png|gif)$/)) {
+        readPromises.push(new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            dataMap[baseName].dataUrl = e.target.result;
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        }));
+      }
+    });
+
+    Promise.all(readPromises).then(() => {
+      Object.values(dataMap).forEach(item => {
+        if (item.dataUrl) {
+          images.push(item);
+        }
+      });
+      if (!currentImageName && images.length > 0) {
+        imageIndex = 0;
+        loadImage(imageIndex);
+      }
+      updateThumbnailPanel();
+      saveState();
+    });
+    e.target.value = "";
+  });
+</script>
   
   <script>
     window.onload = () => {
